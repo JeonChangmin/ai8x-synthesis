@@ -10,9 +10,11 @@ Embedded network and simulation test generator program for Tornado CNN
 import os
 import sys
 import time
+from pathlib import Path
 from pydoc import locate
 
 import numpy as np
+import pandas as pd
 
 import rich.console
 
@@ -71,6 +73,21 @@ def main():
     # Load configuration file
     cfg, cfg_layers, params = yamlcfg.parse(args.config_file, args.skip_yaml_layers, args.yamllint)
     state.layer_name = params['layer_name']
+
+    memory_map_csv = args.memory_map_csv
+    if memory_map_csv:
+        csv_path = Path(memory_map_csv)
+        print(f"Loading memory map from {csv_path}")
+        if not csv_path.exists():
+            raise FileNotFoundError(f"Memory map file {csv_path} not found")
+        for _, row in pd.read_csv(csv_path).iterrows():
+            layer, y, height = row["layer"], row["y"], row["height"]
+            proc_map = 0
+            for j in range(y, y + height):
+                proc_map |= 1 << j
+            orig_proc_map = params["processor_map"][layer]
+            print(f"Layer {layer:2d}: 0x{orig_proc_map:016x} => 0x{proc_map:016x}")
+            params["processor_map"][layer] = proc_map
 
     # If not using test data, load weights and biases
     # This also configures the network's output channels
@@ -641,6 +658,7 @@ def main():
     state.input_skip = input_skip
     state.kernel_size = kernel_size
     state.layers = layers
+    state.memory_map_csv = memory_map_csv
     state.next_sequence = next_sequence
     state.operands = operands
     state.operator = operator

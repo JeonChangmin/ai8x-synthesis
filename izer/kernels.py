@@ -7,10 +7,13 @@
 """
 Kernel related functions
 """
+import math
+from pathlib import Path
 import sys
 from typing import Optional
 
 import numpy as np
+import pandas as pd
 
 from . import console, op, rv, state
 from . import tornadocnn as tc
@@ -269,6 +272,15 @@ def load(  # pylint: disable=too-many-branches,too-many-statements
                 kern_count[0] = (kern_count[0] + 3) // 4
                 kern_ochan[0] = (kern_ochan[0] + 3) // 4
 
+            if state.memory_map_csv:
+                csv_path = Path(state.memory_map_csv)
+                if not csv_path.exists():
+                    raise FileNotFoundError(f"Memory map file {csv_path} not found")
+                memory_map = {
+                    row["layer"]: [row["width"], row["height"], row["x"], row["y"]]
+                    for _, row in pd.read_csv(csv_path).iterrows()
+                }
+
             def search_kernel_mem(
                     ll: int,
                     offs: int,
@@ -280,6 +292,13 @@ def load(  # pylint: disable=too-many-branches,too-many-statements
             ) -> int:
                 """Search kernel memory for free space"""
                 assert tc.dev is not None
+
+                if state.memory_map_csv:
+                    width, height, x, y = memory_map[ll]
+                    assert height == last_proc - first_proc + 1
+                    assert width == math.ceil(kern_len[ll] / tc.dev.P_SHARED) * tc.dev.P_SHARED
+                    assert y == first_proc
+                    return x
 
                 def kernel_mem_mask(
                         offs: int,

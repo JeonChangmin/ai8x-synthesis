@@ -111,6 +111,7 @@ log_pooling: bool = False
 log: bool = False
 max_count: Optional[int] = None
 measure_energy: bool = False
+memory_map_csv: str = ''
 mexpress: bool = False
 mlator_chunk: int = 0
 mlator_noverify: bool = False
